@@ -13,7 +13,7 @@ import (
 func (apiCfg *apiConfig) HandleCreateFeedFollow(w http.ResponseWriter, r *http.Request, user database.User){
 	type parameters struct {
 		UserID uuid.UUID `json:"user_id"`
-		FeedID uuid.UUID `json:"fedd_id"`
+		FeedID uuid.UUID `json:"feed_id"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -46,4 +46,29 @@ func (apiCfg *apiConfig) HandleGetUserFeedFollows(w http.ResponseWriter, r *http
 		return
 	}
 	respondWithJSON(w, 200, dbFeedFollowsToFeedFollows(feedFollows))
+}
+
+func (apiCfg *apiConfig) HandleDeleteUserFeedFollows(w http.ResponseWriter, r *http.Request, user database.User){
+	FeedFollowId := r.PathValue("feedFollowId")
+	if FeedFollowId == "" {
+		respondWithError(w, 400, "No feed follow selected to delete")
+		return
+	}
+
+	id, err := uuid.Parse(FeedFollowId)
+	if err != nil {
+		respondWithError(w, 400, fmt.Sprintf("error parsing UUID: %v", err))
+		return
+	}
+
+	err = apiCfg.DB.DeleteFeedFollow(r.Context(), database.DeleteFeedFollowParams{
+		ID: id,
+		UserID: user.ID,
+	})
+	if err != nil {
+		respondWithError(w, 500, "failed to delete follow")
+		return
+	}
+
+	respondWithJSON(w, 200, "Follow deleted successfully")
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/MishaYanov/rssagg/internal/database"
 	"github.com/go-chi/chi/v5"
@@ -44,10 +45,10 @@ func main() {
 	}
 	log.Println("Connected to database successfully!")
 
-	queries := database.New(conn)
+	db := database.New(conn)
 
 	apiCfg := apiConfig{
-		DB: queries,
+		DB: db,
 	}
 
 	router := chi.NewRouter()
@@ -72,12 +73,18 @@ func main() {
 	v1Router.Post("/feeds", apiCfg.middlewareAuth(apiCfg.HandleCreateFeed))
 	v1Router.Get("/feeds", apiCfg.HandleGetFeeds)
 
+	v1Router.Post("/feed-follows", apiCfg.middlewareAuth(apiCfg.HandleCreateFeedFollow))
+	v1Router.Get("/feed-follows", apiCfg.middlewareAuth(apiCfg.HandleGetUserFeedFollows))
+	v1Router.Delete("/feed-follows/{feedFollowId}", apiCfg.middlewareAuth(apiCfg.HandleDeleteUserFeedFollows))
+
 	router.Mount("/v1", v1Router)
 
 	srv := &http.Server{
 		Handler: router,
 		Addr:    ":" + portString,
 	}
+
+	go startScraping(db, 10, time.Minute)
 
 	log.Printf("Server starting on port %s", portString)
 	err = srv.ListenAndServe()
